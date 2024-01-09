@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import Robot from "../assets/smile.png";
+import Logout from "./Logout";
 
 export default function Welcome() {
   const [name, setname] = useState("");
@@ -24,6 +25,7 @@ export default function Welcome() {
 
   return (
     <Container>
+      <Logout />
       <img src={Robot} alt="" />
       <h1>
         Welcome, <span>{name}!</span>

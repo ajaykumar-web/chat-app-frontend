@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import styled from "styled-components";
-import Logout from "./Logout";
 import { v4 as uuidv4 } from "uuid";
 import { sendMessageRoute, recieveMessageRoute } from "../utils/APIRoutes";
 import { IoMdSend } from "react-icons/io";
@@ -11,48 +10,84 @@ import { IoMdSend } from "react-icons/io";
 export default function ChatContainer({ currentChat, socket }) {
   const [messages, setMessages] = useState([]);
   const [userIsTyping, setUserIsTyping] = useState({});
+  const scrollRef = useRef();
   const [arrivalMessage, setArrivalMessage] = useState(null);
   const [msg, setMsg] = useState("");
-  const scrollRef = useRef();
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (currentChat) {
-        try {
-          const data = await JSON.parse(
-            localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-          );
-          const response = await axios.post(recieveMessageRoute, {
-            from: data._id,
-            to: currentChat._id,
-          });
-          setMessages(response.data);
-        } catch (error) {
-          console.error("Error fetching messages:", error);
-        }
+    const fetchData = async () => {
+      try {
+        const data = await JSON.parse(
+          localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
+        );
+
+        const response = await axios.post(recieveMessageRoute, {
+          from: data?._id,
+          to: currentChat?._id,
+        });
+
+        setMessages(response.data);
+      } catch (error) {
+        console.error("Error fetching messages:", error);
       }
     };
 
-    fetchMessages();
+    fetchData();
   }, [currentChat]);
 
   useEffect(() => {
-    const getCurrentChatUserId = async () => {
+    const getCurrentChat = async () => {
       if (currentChat) {
-        try {
-          const userId = await JSON.parse(
-            localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-          )._id;
-          console.log("Current User ID:", userId);
-        } catch (error) {
-          console.error("Error getting current user ID:", error);
-        }
+        await JSON.parse(
+          localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
+        )._id;
       }
     };
-
-    getCurrentChatUserId();
+    getCurrentChat();
   }, [currentChat]);
 
+  const handleSendMsg = async (msg) => {
+    const data = await JSON.parse(
+      localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
+    );
+    socket.current.emit("send-msg", {
+      to: currentChat._id,
+      from: data._id,
+      msg,
+    });
+    await axios.post(sendMessageRoute, {
+      from: data._id,
+      to: currentChat._id,
+      message: msg,
+    });
+
+    const msgs = [...messages];
+    msgs.push({ fromSelf: true, message: msg });
+    setMessages(msgs);
+  };
+
+  useEffect(() => {
+    if (socket.current) {
+      socket.current.on("msg-recieve", (msg) => {
+        setArrivalMessage({ fromSelf: false, message: msg });
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    arrivalMessage && setMessages((prev) => [...prev, arrivalMessage]);
+  }, [arrivalMessage]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+  const sendChat = (event) => {
+    event.preventDefault();
+    if (msg.length > 0) {
+      handleSendMsg(msg);
+      setMsg("");
+    }
+  };
   const isTyping = () => {
     socket.current.emit("typing", {
       typing: "typing...",
@@ -63,59 +98,6 @@ export default function ChatContainer({ currentChat, socket }) {
   socket.current.on("typing", (data) => {
     setUserIsTyping(data);
   });
-  const handleSendMsg = async (msg) => {
-    try {
-      const data = await JSON.parse(
-        localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-      );
-      await axios.post(sendMessageRoute, {
-        from: data._id,
-        to: currentChat._id,
-        message: msg,
-        createdAt: new Date().toLocaleTimeString(),
-      });
-
-      const updatedMessages = [
-        ...messages,
-        {
-          fromSelf: true,
-          message: msg,
-          createdAt: new Date().toLocaleTimeString(),
-        },
-      ];
-      setMessages(updatedMessages);
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
-  };
-  useEffect(() => {
-    if (socket.current) {
-      socket.current.on("msg-recieve", (msg) => {
-        setArrivalMessage({
-          fromSelf: false,
-          message: msg,
-          createdAt: new Date().toLocaleTimeString(),
-        });
-      });
-    }
-  }, [socket]);
-
-  useEffect(() => {
-    arrivalMessage && setMessages((prev) => [...prev, arrivalMessage]);
-  }, [arrivalMessage]);
-
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const sendChat = (event) => {
-    event.preventDefault();
-    if (msg.length > 0) {
-      handleSendMsg(msg);
-      setMsg("");
-    }
-  };
-
   return (
     <Container>
       <div className="chat-header">
@@ -124,7 +106,6 @@ export default function ChatContainer({ currentChat, socket }) {
             <h3>{currentChat.username}</h3>
           </div>
         </div>
-        <Logout />
       </div>
       <div className="chat-messages">
         {messages.map((message) => (

@@ -42,6 +42,9 @@ const Button = styled.button`
   background-color: #242c80;
   border: none;
   cursor: pointer;
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
 
   svg {
     font-size: 1.3rem;
