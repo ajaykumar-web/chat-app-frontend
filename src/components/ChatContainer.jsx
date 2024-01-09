@@ -6,6 +6,7 @@ import styled from "styled-components";
 import { v4 as uuidv4 } from "uuid";
 import { sendMessageRoute, recieveMessageRoute } from "../utils/APIRoutes";
 import { IoMdSend } from "react-icons/io";
+import Logout from "./Logout";
 
 export default function ChatContainer({ currentChat, socket }) {
   const [messages, setMessages] = useState([]);
@@ -100,6 +101,7 @@ export default function ChatContainer({ currentChat, socket }) {
   });
   return (
     <Container>
+      <Logout />
       <div className="chat-header">
         <div className="user-details">
           <div className="username">
